@@ -1,0 +1,9 @@
+version: '1.1'
+
+services:
+  flask-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "7755:7755"

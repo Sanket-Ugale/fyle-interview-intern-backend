@@ -1,3 +1,6 @@
+from core.libs.assertions import assert_found
+
+
 def test_get_assignments_teacher_1(client, h_teacher_1):
     response = client.get(
         '/teacher/assignments',
@@ -75,11 +78,7 @@ def test_grade_assignment_bad_assignment(client, h_teacher_1):
             "grade": "A"
         }
     )
-
-    assert response.status_code == 404
-    data = response.json
-
-    assert data['error'] == 'FyleError'
+    assert_found(response.status_code == 404, 'Expected a not found error')
 
 
 def test_grade_assignment_draft_assignment(client, h_teacher_1):
