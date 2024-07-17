@@ -1,4 +1,5 @@
-from core.models.assignments import AssignmentStateEnum, GradeEnum
+from core import db
+from core.models.assignments import Assignment, AssignmentStateEnum, GradeEnum
 
 
 def test_get_assignments(client, h_principal):
@@ -127,10 +128,97 @@ def test_principal_grade_draft_assignment(client, h_principal):
     )
     assert response.status_code == 400
 
-    def test_principal_view_assignments_without_authentication(client):
+def test_principal_view_assignments_without_authentication(client):
         response = client.get('/principal/assignments')
         assert response.status_code == 401  # Assuming 401 is used for authentication errors
 
-    def test_principal_view_teachers_without_authentication(client):
+def test_principal_view_teachers_without_authentication(client):
         response = client.get('/principal/teachers')
         assert response.status_code == 401  # Assuming 401 is used for authentication errors
+
+def test_principal_grade_submitted_assignment(client, h_principal):
+    # Ensure there's a submitted assignment
+    client.post(
+        '/student/assignments/submit',
+        headers={'X-Principal': '{"user_id": 1, "student_id": 1}'},
+        json={
+            'id': 2,
+            'teacher_id': 1
+        })
+    
+    response = client.post(
+        '/principal/assignments/grade',
+        json={
+            'id': 2,
+            'grade': GradeEnum.B.value
+        },
+        headers=h_principal
+    )
+    assert response.status_code == 200
+    assert response.json['data']['grade'] == GradeEnum.B.value
+    assert response.json['data']['state'] == AssignmentStateEnum.GRADED.value
+
+def test_principal_regrade_assignment(client, h_principal):
+    # First, grade an assignment
+    client.post(
+        '/principal/assignments/grade',
+        json={
+            'id': 1,
+            'grade': GradeEnum.A.value
+        },
+        headers=h_principal
+    )
+    
+    response = client.post(
+        '/principal/assignments/grade',
+        json={
+            'id': 1,
+            'grade': GradeEnum.B.value
+        },
+        headers=h_principal
+    )
+    assert response.status_code == 200
+    assert response.json['data']['grade'] == GradeEnum.B.value
+
+def test_principal_list_teachers(client, h_principal):
+    response = client.get('/principal/teachers', headers=h_principal)
+    assert response.status_code == 200
+    assert 'data' in response.json
+    assert isinstance(response.json['data'], list)
+
+from core.models.principals import Principal
+
+def test_principal_representation():
+    principal = Principal(id=1, user_id=1)
+    assert str(principal) == '<Principal 1>'
+
+def test_principal_grade_nonexistent_assignment(client, h_principal):
+    response = client.post(
+        '/principal/assignments/grade',
+        json={
+            'id': 9999,  # Non-existent assignment ID
+            'grade': GradeEnum.A.value
+        },
+        headers=h_principal
+    )
+    assert response.status_code == 404
+
+def test_principal_grade_invalid_grade(client, h_principal):
+    response = client.post(
+        '/principal/assignments/grade',
+        json={
+            'id': 1,
+            'grade': 'INVALID_GRADE'
+        },
+        headers=h_principal
+    )
+    assert response.status_code == 400
+
+def test_principal_view_empty_assignments(client, h_principal):
+    # Clear all assignments before this test
+    Assignment.query.delete()
+    db.session.commit()
+    
+    response = client.get('/principal/assignments', headers=h_principal)
+    assert response.status_code == 200
+    assert len(response.json['data']) == 0

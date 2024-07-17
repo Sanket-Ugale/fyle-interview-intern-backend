@@ -1,6 +1,17 @@
 [run]
+source = core
 omit =
     *env/*
     *__pycache__/*
     *.pytest_cache/*
     *tests/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    raise NotImplementedError
+    pass
+    except ImportError:
+    def __str__
